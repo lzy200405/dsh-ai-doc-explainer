@@ -54,6 +54,7 @@ globalThis.window = {
   removeEventListener: () => {},
   innerWidth: 1280,
   innerHeight: 800,
+  __DOC_READER_TEST__: true,
 }
 globalThis.document = {
   querySelector: selector => (selector === '[data-sidebar-right-session]' ? scopedElement : null),
@@ -275,6 +276,25 @@ test('every class used by the browser half is defined in its own stylesheet', ()
     '#f2c94c', '#4f8ef7', '#35b87f', '#e070a8', '#ef8a3c',
     'rgba(', 'rgba(', 'rgba(', 'rgba(', 'rgba(',
   ], 'only the scrim, marker palette and highlight paints use literal colors')
+})
+
+test('annotation anchors survive colour edits and pick the right repeated quote', () => {
+  const api = plugin.__test
+  assert.ok(api, 'the test hook is exported for the harness')
+  const note = api.withAnchor(api.withColor('hello', 'p'), { before: '甲乙', after: '丙丁' })
+  assert.equal(api.colorOf(note), 'p')
+  assert.deepEqual(api.anchorOf(note), { before: '甲乙', after: '丙丁' })
+  assert.equal(api.stripColor(note), 'hello')
+
+  const recolored = api.withColor(note, 'g')
+  assert.equal(api.colorOf(recolored), 'g')
+  assert.deepEqual(api.anchorOf(recolored), { before: '甲乙', after: '丙丁' })
+
+  const stripped = '第一处行变换后面。第二段行变换：这是目标。'
+  const positions = [...stripped.matchAll(/行变换/g)].map(match => match.index)
+  assert.equal(positions.length, 2)
+  const chosen = api.chooseOccurrence({ stripped }, positions, 3, { before: '第二段', after: '：这是目标。' })
+  assert.equal(chosen, positions[1])
 })
 
 test('the browser half imports no Harness client package', () => {

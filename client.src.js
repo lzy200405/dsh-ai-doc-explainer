@@ -118,6 +118,9 @@ window.__ModuleLoader__.load({
       'panel.locate': '定位',
       'panel.highlightAll': '高亮全部',
       'panel.askAgain': '继续提问',
+      'panel.reanchor': '重新关联',
+      'reanchor.bind': '绑定此处',
+      'reanchor.cancel': '取消',
       'panel.expand': '展开',
       'panel.collapse': '收起',
       'panel.expandAll': '展开全部',
@@ -167,6 +170,10 @@ window.__ModuleLoader__.load({
       'panel.fontLarger': '放大批注文字',
       'hover.hint': '点击查看这条批注',
       'toast.saved': '批注已保存。',
+      'toast.reanchorHint': '请在文档中选中与批注相同的原文，再点工具栏的「绑定此处」。',
+      'toast.reanchorNeedSelection': '没有选中可绑定的原文：请选中与批注相同的那段文字。',
+      'toast.reanchored': '已重新关联到选中的位置。',
+      'toast.reanchorFailed': '重新关联失败，请重试。',
       'toast.notFound': '没找到这段原文：所在页面可能还没渲染，滚动到附近再试。',
       'toast.locating': '正在文档中查找这段原文…',
     }
@@ -231,6 +238,9 @@ window.__ModuleLoader__.load({
       'panel.locate': 'Locate',
       'panel.highlightAll': 'Highlight all',
       'panel.askAgain': 'Ask again',
+      'panel.reanchor': 'Re-anchor',
+      'reanchor.bind': 'Bind here',
+      'reanchor.cancel': 'Cancel',
       'panel.expand': 'Expand',
       'panel.collapse': 'Collapse',
       'panel.expandAll': 'Expand all',
@@ -280,6 +290,10 @@ window.__ModuleLoader__.load({
       'panel.fontLarger': 'Larger annotation text',
       'hover.hint': 'Click to open this annotation',
       'toast.saved': 'Annotation saved.',
+      'toast.reanchorHint': 'Select the same passage at the right place, then click “Bind here” in the toolbar.',
+      'toast.reanchorNeedSelection': 'Nothing to bind: select the passage this annotation quotes.',
+      'toast.reanchored': 'Re-anchored to the selected occurrence.',
+      'toast.reanchorFailed': 'Re-anchoring failed. Try again.',
       'toast.notFound': 'The quoted text was not found; its page may not be rendered yet. Scroll near it and try again.',
       'toast.locating': 'Looking for the passage in the document…',
     }
@@ -542,6 +556,13 @@ window.__ModuleLoader__.load({
         white-space: pre-wrap;
       }
       .dr-hover-hint { color: var(--dsw-alias-label-secondary); font-size: 11px; }
+      .dr-reanchor-tools { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
+      .dr-reanchor-btn {
+        padding: 2px 8px; border-radius: 6px; border: 1px solid var(--dsw-alias-brand-primary);
+        background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
+        color: var(--dsw-alias-brand-primary); font: inherit; font-size: 11px; cursor: pointer;
+      }
+      .dr-reanchor-btn:hover { background: color-mix(in srgb, var(--dsw-alias-brand-primary) 18%, transparent); }
       .dr-textarea { font-size: 14px; line-height: 1.6; }
       /* CSS Custom Highlight paints in place without touching the preview's DOM. */
       ::highlight(doc-reader-y) { background-color: rgba(242, 201, 76, 0.38); }
@@ -759,14 +780,77 @@ window.__ModuleLoader__.load({
       return { text, at: Date.now(), title: activeTabTitle(ctx), truncated }
     }
 
-    // ----------------------------------------------------- in-text highlights
+    /**
+     * Remember a short window of rendered text around the selection so later
+     * paints can choose the same occurrence when the quote is not unique.
+     */
+    function startPositionOf(range, index) {
+      const container = range.startContainer
+      const offset = range.startOffset
+      if (container && container.nodeType === 3) {
+        const segment = index.segments.find(entry => entry.node === container)
+        if (!segment) return null
+        const text = container.nodeValue || ''
+        let count = 0
+        for (let position = 0; position < Math.min(offset, text.length); position += 1) {
+          if (normalizedChar(text[position]) !== '') count += 1
+        }
+        return segment.start + count
+      }
+      if (!container || typeof document.createTreeWalker !== 'function') return null
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
+      const first = walker.nextNode()
+      if (!first) return null
+      const segment = index.segments.find(entry => entry.node === first)
+      return segment ? segment.start : null
+    }
+
+    function buildSelectionAnchor(root, quote) {
+      if (!root || !quote) return null
+      try {
+        const selection = window.getSelection()
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null
+        const range = selection.getRangeAt(0)
+        if (!root.contains(range.commonAncestorContainer)) return null
+        const index = buildTextIndex(root)
+        const start = startPositionOf(range, index)
+        if (start === null) return null
+        const needle = searchable(quote)
+        if (needle.length < 2) return null
+        if (index.stripped.slice(start, start + needle.length) !== needle) return null
+        const before = index.stripped.slice(Math.max(0, start - ANCHOR_RADIUS), start)
+        const after = index.stripped.slice(start + needle.length, start + needle.length + ANCHOR_RADIUS)
+        if (before === '' && after === '') return null
+        return { before, after }
+      } catch {
+        return null
+      }
+    }
 
     const COLOR_KEYS = ['y', 'b', 'g', 'p', 'o']
     const COLOR_DEFAULT_NOTE = 'b'
     const COLOR_DEFAULT_ASK = 'g'
     const COLOR_MARK = '\u2063'
-    /** Host note limit is 4000; keep room for the invisible colour prefix. */
-    const NOTE_BODY_LIMIT = 3996
+    const ANCHOR_MARK = '\u2062'
+    const ANCHOR_RADIUS = 20
+    /** Host note limit is 4000; keep room for the invisible prefix. */
+    const NOTE_BODY_LIMIT = 3750
+
+    function base64Encode(text) {
+      try {
+        return btoa(unescape(encodeURIComponent(text)))
+      } catch {
+        return ''
+      }
+    }
+
+    function base64Decode(value) {
+      try {
+        return decodeURIComponent(escape(atob(value)))
+      } catch {
+        return null
+      }
+    }
 
     /** A question thread carries a question, a source flag, or a thread marker. */
     function isAskAnnotation(annotation) {
@@ -775,22 +859,48 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * The colour lives in an invisible prefix of the note so it travels with the
-     * annotation and works against Host versions that do not know the field yet.
-     * It is stripped before anything reaches the screen or the editor.
+     * The note carries two invisible prefixes: the marker colour and a short
+     * window of visible text around the quote. The window disambiguates a quote
+     * that occurs several times in one document, while staying compatible with
+     * Host versions that only know the note string.
      */
     function colorOf(note) {
       const match = /^\u2063([a-z]):\u2063/.exec(String(note || ''))
       return match && COLOR_KEYS.includes(match[1]) ? match[1] : null
     }
 
+    function decodeAnchor(value) {
+      const text = base64Decode(value)
+      if (text === null) return null
+      const split = text.indexOf('\u0000')
+      if (split < 0) return null
+      return { before: text.slice(0, split), after: text.slice(split + 1) }
+    }
+
+    function anchorOf(note) {
+      const match = /^\u2063[a-z]:\u2063\u2062a:([A-Za-z0-9+/=]+)\u2062/.exec(String(note || ''))
+      return match ? decodeAnchor(match[1]) : null
+    }
+
+    function anchorMarker(anchor) {
+      if (!anchor || (anchor.before === '' && anchor.after === '')) return ''
+      const payload = base64Encode(`${anchor.before}\u0000${anchor.after}`)
+      return payload === '' ? '' : `${ANCHOR_MARK}a:${payload}${ANCHOR_MARK}`
+    }
+
     function stripColor(note) {
-      return String(note || '').replace(/^\u2063[a-z]:\u2063/, '')
+      return String(note || '').replace(/^\u2063[a-z]:\u2063(?:\u2062a:[A-Za-z0-9+/=]+\u2062)?/, '')
     }
 
     function withColor(note, key) {
       const color = COLOR_KEYS.includes(key) ? key : COLOR_DEFAULT_NOTE
-      return `${COLOR_MARK}${color}:${COLOR_MARK}${stripColor(note)}`
+      const anchor = anchorOf(note)
+      return `${COLOR_MARK}${color}:${COLOR_MARK}${anchor ? anchorMarker(anchor) : ''}${stripColor(note)}`
+    }
+
+    function withAnchor(note, anchor) {
+      const color = colorOf(note) || COLOR_DEFAULT_NOTE
+      return `${COLOR_MARK}${color}:${COLOR_MARK}${anchor ? anchorMarker(anchor) : ''}${stripColor(note)}`
     }
 
     /** Effective colour of an annotation, falling back by kind for older records. */
@@ -838,6 +948,7 @@ window.__ModuleLoader__.load({
       if (typeof document === 'undefined') return null
       const pane = document.querySelector('[data-sidebar-right-session]')
       if (!pane) return null
+      if (typeof pane.querySelector !== 'function') return pane
       return pane.querySelector('[data-pdf-preview]') || pane
     }
 
@@ -850,6 +961,7 @@ window.__ModuleLoader__.load({
       if (!scope || typeof scope.closest !== 'function') return previewRoot()
       const pane = scope.closest('[data-sidebar-right-session]')
       if (!pane) return previewRoot()
+      if (typeof pane.querySelector !== 'function') return pane
       return pane.querySelector('[data-pdf-preview]') || pane
     }
 
@@ -934,13 +1046,60 @@ window.__ModuleLoader__.load({
       return null
     }
 
-    /** A Range for the first occurrence of the quote, or null. */
-    function rangeForQuote(index, quote) {
+    /** How much of the stored surrounding text matches this occurrence. */
+    function contextScore(stripped, position, length, anchor) {
+      if (!anchor) return 0
+      let before = 0
+      const beforeLimit = Math.min(anchor.before.length, position, 60)
+      for (let size = beforeLimit; size > 0; size -= 1) {
+        if (stripped.slice(position - size, position) === anchor.before.slice(anchor.before.length - size)) {
+          before = size
+          break
+        }
+      }
+      let after = 0
+      const tail = position + length
+      const afterLimit = Math.min(anchor.after.length, stripped.length - tail, 60)
+      for (let size = afterLimit; size > 0; size -= 1) {
+        if (stripped.slice(tail, tail + size) === anchor.after.slice(0, size)) {
+          after = size
+          break
+        }
+      }
+      return before + after
+    }
+
+    function chooseOccurrence(index, positions, length, anchor) {
+      if (positions.length === 1 || !anchor) return positions[0]
+      let best = positions[0]
+      let bestScore = -1
+      for (const position of positions) {
+        const score = contextScore(index.stripped, position, length, anchor)
+        if (score > bestScore) {
+          bestScore = score
+          best = position
+        }
+      }
+      return best
+    }
+
+    /** The Range for the quote: the occurrence matching the stored context, or null. */
+    function rangeForQuote(index, quote, anchor) {
       const needle = searchable(quote)
       if (needle.length >= 2) {
-        const at = index.stripped.indexOf(needle)
-        if (at >= 0) return rangeAt(index, at, needle.length)
+        const positions = []
+        let at = index.stripped.indexOf(needle)
+        while (at >= 0 && positions.length < 240) {
+          positions.push(at)
+          at = index.stripped.indexOf(needle, at + 1)
+        }
+        if (positions.length > 0) {
+          return rangeAt(index, chooseOccurrence(index, positions, needle.length, anchor), needle.length)
+        }
       }
+      // With a stored context, an exact miss means the document changed; do not
+      // guess a nearby span and paint the wrong passage.
+      if (anchor) return null
       return mathFallbackRange(index, quote)
     }
 
@@ -973,7 +1132,12 @@ window.__ModuleLoader__.load({
       const first = found[0]
       const last = found[found.length - 1]
       if (last.at <= first.at) return null
-      return rangeAt(index, first.at, last.at + last.length - first.at)
+      // The fallback is only a last resort: refuse spans much longer than the
+      // quote, which would otherwise paint the preceding passage too.
+      const span = last.at + last.length - first.at
+      const needleLength = searchable(quote).length
+      if (span > Math.max(160, needleLength * 3)) return null
+      return rangeAt(index, first.at, span)
     }
 
     function clearHighlights() {
@@ -993,7 +1157,7 @@ window.__ModuleLoader__.load({
       const groups = new Map(COLOR_KEYS.map(key => [key, []]))
       for (const annotation of annotations) {
         if (!annotation || typeof annotation.quote !== 'string' || annotation.quote.trim() === '') continue
-        const range = rangeForQuote(index, annotation.quote)
+        const range = rangeForQuote(index, annotation.quote, anchorOf(annotation.note))
         if (range === null) continue
         const color = annotationColor(annotation)
         highlightRanges.push({ annotation, range, color })
@@ -1009,8 +1173,8 @@ window.__ModuleLoader__.load({
     }
 
     /** Scroll the quote into view and select it (the browser paints the selection). */
-    function scrollToQuote(root, quote) {
-      const range = rangeForQuote(buildTextIndex(root), quote)
+    function scrollToQuote(root, quote, anchor) {
+      const range = rangeForQuote(buildTextIndex(root), quote, anchor)
       if (range === null) return false
       try {
         const node = range.startContainer
@@ -1157,11 +1321,11 @@ window.__ModuleLoader__.load({
      * the quote is nowhere to be found.
      * @returns 'found' | 'no-root' | 'no-scroller' | 'not-found'
      */
-    async function locateInDocument(getRoot, quote, cancelled) {
+    async function locateInDocument(getRoot, quote, cancelled, anchor) {
       if (!quote) return 'found'
       let root = getRoot()
       if (!root) return 'no-root'
-      if (scrollToQuote(root, quote)) return 'found'
+      if (scrollToQuote(root, quote, anchor)) return 'found'
       const scroller = findScroller(root)
       if (!scroller) return 'no-scroller'
       const original = scroller.scrollTop
@@ -1170,7 +1334,7 @@ window.__ModuleLoader__.load({
       await sleep(140)
       for (let attempt = 0; attempt < 120 && !cancelled(); attempt += 1) {
         root = getRoot()
-        if (root && scrollToQuote(root, quote)) return 'found'
+        if (root && scrollToQuote(root, quote, anchor)) return 'found'
         const before = scroller.scrollTop
         scroller.scrollTop = Math.min(scroller.scrollHeight, before + step)
         if (scroller.scrollTop === before) break
@@ -1533,7 +1697,10 @@ window.__ModuleLoader__.load({
           : combined.slice(combined.length - NOTE_BODY_LIMIT)
         await requestJson('update', {
           id: capture.annotationId,
-          note: withColor(clipped, colorOf(current.note) || annotationColor(current)),
+          note: withAnchor(
+            withColor(clipped, colorOf(current.note) || annotationColor(current)),
+            anchorOf(current.note),
+          ),
         })
         removeCapture(capture.id)
         bumpVersion()
@@ -1647,6 +1814,8 @@ window.__ModuleLoader__.load({
     const versionStore = createStore(0)
     /** `{ path, quote, serial }`: a request for the mounted document toolbar to locate a quote. */
     const jumpStore = createStore(null)
+    /** `{ id, note, quote, path, serial }`: bind an existing annotation to a newly selected occurrence. */
+    const reanchorStore = createStore(null)
     /** `{ message, serial }`: a transient frame-wide notice. */
     const toastStore = createStore(null)
     /** `{ documentPath, annotationId, serial }`: open the notes page focused on one annotation. */
@@ -1692,6 +1861,7 @@ window.__ModuleLoader__.load({
       useLocaleTick()
       const selection = useStore(selectionStore)
       const jump = useStore(jumpStore)
+      const reanchor = useStore(reanchorStore)
       const version = useStore(versionStore)
       const annotationsRef = React.useRef([])
       const toolbarRef = React.useRef(null)
@@ -1870,6 +2040,7 @@ window.__ModuleLoader__.load({
               () => previewRootWithin(toolbarRef.current),
               jump.quote,
               () => cancelled,
+              jump.anchor,
             )
             if (locating) clearTimeout(locating)
           }
@@ -1894,6 +2065,7 @@ window.__ModuleLoader__.load({
         openDialog({
           mode: 'ask', sessionId, path, name, address,
           quote: fresh ? selection.text : '',
+          anchor: fresh ? buildSelectionAnchor(previewRootWithin(toolbarRef.current), selection.text) : null,
           truncated: fresh ? selection.truncated === true : false,
           needsSelection: !fresh,
         })
@@ -1902,11 +2074,45 @@ window.__ModuleLoader__.load({
         openDialog({
           mode: 'note', sessionId, path, name, address,
           quote: fresh ? selection.text : '',
+          anchor: fresh ? buildSelectionAnchor(previewRootWithin(toolbarRef.current), selection.text) : null,
           truncated: fresh ? selection.truncated === true : false,
         })
       }
       const list = () => {
         openNotesPanel(ctxRef.current, path ? { path, name, address } : undefined)
+      }
+
+      const normalizePath = value => String(value || '').replace(/\\/g, '/').toLowerCase()
+      const reanchorActive = Boolean(reanchor && path && normalizePath(reanchor.path) === normalizePath(path))
+      const bindAnchor = async () => {
+        if (!reanchor) return
+        const anchor = buildSelectionAnchor(previewRootWithin(toolbarRef.current), reanchor.quote)
+        if (!anchor) {
+          showToast(tRef.current('toast.reanchorNeedSelection'))
+          return
+        }
+        try {
+          const data = await requestJson('list', { documentPath: path })
+          const current = (data && Array.isArray(data.annotations) ? data.annotations : [])
+            .find(annotation => annotation.id === reanchor.id)
+          if (!current) {
+            reanchorStore.set(null)
+            showToast(tRef.current('toast.reanchorFailed'))
+            return
+          }
+          const color = colorOf(current.note) || (isAskAnnotation(current) ? 'g' : 'b')
+          const body = stripColor(current.note).slice(0, NOTE_BODY_LIMIT)
+          await requestJson('update', {
+            id: reanchor.id,
+            note: withAnchor(withColor(body, color), anchor),
+          })
+          reanchorStore.set(null)
+          bumpVersion()
+          showToast(tRef.current('toast.reanchored'))
+        } catch (failure) {
+          console.warn('[doc-reader] reanchor failed', failure)
+          showToast(tRef.current('toast.reanchorFailed'))
+        }
       }
 
       const tipAnnotation = tip && tip.annotation ? tip.annotation : null
@@ -1958,6 +2164,19 @@ window.__ModuleLoader__.load({
           }, icon('list'), annotationCount > 0
             ? h('span', { className: 'dr-count' }, annotationCount > 99 ? '99+' : String(annotationCount))
             : null),
+          reanchorActive
+            ? h('span', { className: 'dr-reanchor-tools' },
+              h('button', {
+                type: 'button', className: 'dr-reanchor-btn',
+                onMouseDown: event => event.preventDefault(),
+                onClick: () => { void bindAnchor() },
+              }, tRef.current('reanchor.bind')),
+              h('button', {
+                type: 'button', className: 'dr-link',
+                onMouseDown: event => event.preventDefault(),
+                onClick: () => reanchorStore.set(null),
+              }, tRef.current('reanchor.cancel')))
+            : null,
         ),
         tipNode,
       )
@@ -2170,7 +2389,10 @@ window.__ModuleLoader__.load({
             const base = existing.note === existing.question
               ? format(t('thread.question'), { text: existing.question })
               : stripColor(existing.note).trimEnd()
-            await requestJson('update', { id: existing.id, note: withColor(clip(`${base}\n\n${questionLine}`), color) })
+            await requestJson('update', {
+              id: existing.id,
+              note: withAnchor(withColor(clip(`${base}\n\n${questionLine}`), color), anchorOf(existing.note)),
+            })
             annotationId = existing.id
           } else {
             const created = await requestJson('add', {
@@ -2178,7 +2400,7 @@ window.__ModuleLoader__.load({
               documentName: name,
               type: quote ? 'selection' : 'document',
               quote,
-              note: withColor(clip(questionLine), color),
+              note: withAnchor(withColor(clip(questionLine), color), dialog.anchor),
               ...(asked ? { question: asked } : {}),
               sessionId: dialog.sessionId,
               ...(dialog.address ? { documentAddress: dialog.address } : {}),
@@ -2214,7 +2436,7 @@ window.__ModuleLoader__.load({
             documentName: name,
             type: quote ? 'selection' : 'document',
             quote,
-            note: withColor(text.slice(0, NOTE_BODY_LIMIT), color),
+            note: withAnchor(withColor(text.slice(0, NOTE_BODY_LIMIT), color), dialog.anchor),
             sessionId: dialog.sessionId,
             ...(dialog.address ? { documentAddress: dialog.address } : {}),
           })
@@ -2495,7 +2717,12 @@ window.__ModuleLoader__.load({
           documentName: annotation.documentName || baseName(annotation.documentPath),
           documentAddress: annotation.documentAddress || address,
         }
-        jumpStore.set({ path: path || target.documentPath, quote: annotation.quote || '', serial: Date.now() })
+        jumpStore.set({
+          path: path || target.documentPath,
+          quote: annotation.quote || '',
+          anchor: anchorOf(annotation.note),
+          serial: Date.now(),
+        })
         if (focusDocumentTab(ctxRef.current, target)) return
         jumpStore.set(null)
         setError(new ApiError('document-not-open'))
@@ -2543,9 +2770,33 @@ window.__ModuleLoader__.load({
           address,
           quote: annotation.quote,
           color: annotationColor(annotation),
+          anchor: anchorOf(annotation.note),
           truncated: false,
           needsSelection: false,
         })
+      }
+
+      /** Let the user select the correct occurrence again and rebind this annotation. */
+      const reanchorAnnotation = (annotation) => {
+        if (!annotation.quote) return
+        const target = {
+          documentPath: annotation.documentPath,
+          documentName: annotation.documentName || baseName(annotation.documentPath),
+          documentAddress: annotation.documentAddress || address,
+        }
+        reanchorStore.set({
+          id: annotation.id,
+          note: annotation.note,
+          quote: annotation.quote,
+          path: path || target.documentPath,
+          serial: Date.now(),
+        })
+        if (focusDocumentTab(ctxRef.current, target)) {
+          showToast(t('toast.reanchorHint'))
+          return
+        }
+        reanchorStore.set(null)
+        setError(new ApiError('document-not-open'))
       }
 
       const changeColor = async (annotation) => {
@@ -2553,7 +2804,10 @@ window.__ModuleLoader__.load({
         try {
           await requestJson('update', {
             id: annotation.id,
-            note: withColor(stripColor(annotation.note).slice(0, NOTE_BODY_LIMIT), next),
+            note: withAnchor(
+              withColor(stripColor(annotation.note).slice(0, NOTE_BODY_LIMIT), next),
+              anchorOf(annotation.note),
+            ),
           })
           bumpVersion()
         } catch (failure) {
@@ -2572,7 +2826,10 @@ window.__ModuleLoader__.load({
         try {
           await requestJson('update', {
             id: annotation.id,
-            note: withColor(editNote.trim().slice(0, NOTE_BODY_LIMIT), annotationColor(annotation)),
+            note: withAnchor(
+              withColor(editNote.trim().slice(0, NOTE_BODY_LIMIT), annotationColor(annotation)),
+              anchorOf(annotation.note),
+            ),
           })
           setEditingId(null)
           bumpVersion()
@@ -2729,6 +2986,9 @@ window.__ModuleLoader__.load({
               annotation.quote
                 ? h('button', { type: 'button', className: 'dr-link', onClick: () => askAgain(annotation) }, t('panel.askAgain'))
                 : null,
+              annotation.quote
+                ? h('button', { type: 'button', className: 'dr-link', onClick: () => reanchorAnnotation(annotation) }, t('panel.reanchor'))
+                : null,
               h('button', { type: 'button', className: 'dr-link', onClick: () => quoteAnnotation(annotation) }, t('panel.quoteAction')),
               h('button', { type: 'button', className: 'dr-link', onClick: () => startEdit(annotation) }, t('panel.editAction')),
               confirming
@@ -2877,11 +3137,22 @@ window.__ModuleLoader__.load({
       }, 'doc-reader: client ping')
     }
 
+    const testApi = {
+      colorOf,
+      anchorOf,
+      withAnchor,
+      withColor,
+      stripColor,
+      contextScore,
+      chooseOccurrence,
+    }
+
     return {
       inject: ['slots', 'locale', 'sessions', 'conversation', 'sidebarRight', 'sidebarRightTabs'],
       apply(ctx) {
         registerUi(ctx)
       },
+      ...(typeof window !== 'undefined' && window.__DOC_READER_TEST__ ? { __test: testApi } : {}),
     }
   },
 })
