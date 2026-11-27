@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Document reader",
+    "description": "Ask the AI about selected text in Word, PDF and Markdown previews, and keep annotations you can revisit on the same document.",
+    "detail": "docs/DETAIL.md"
+  }
+}

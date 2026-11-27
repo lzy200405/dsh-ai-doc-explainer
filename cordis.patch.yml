@@ -1,0 +1,4 @@
+- insert:
+    - id: doc-reader
+      name: '@local/doc-reader'
+      config: {}

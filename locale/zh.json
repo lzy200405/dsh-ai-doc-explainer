@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "文档阅读助手",
+    "description": "在 Word、PDF、Markdown 预览中选中文字向 AI 提问，并把想法保存成可回看的文档批注。",
+    "detail": "docs/DETAIL.md"
+  }
+}
