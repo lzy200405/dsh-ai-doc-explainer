@@ -10,9 +10,11 @@ about the same passage appends another round to that thread. Click **Annotate**
 to store the selection and your note. The **Document notes** page lists
 annotations per document: **Locate** switches back to the document, scrolls to
 the quote and selects it, annotations are painted inside the preview with the
-browser's CSS Custom Highlight API (blue = note, green = question), and clicking
-a painted highlight opens the notes page focused on its card. **Quote** puts an
-annotation back into the composer. Annotations live in the profile storage domain
+browser's CSS Custom Highlight API in five selectable marker colours (yellow,
+blue, green, pink, orange); hovering a painted highlight previews the annotation
+and clicking it opens the notes page focused on its card. **Quote** puts an
+annotation back into the composer. Saving an annotation stays in the document
+instead of switching to the notes page. Annotations live in the profile storage domain
 `doc_reader` and are shared across sessions, not written into the workspace.
 Scanned PDFs, images and spreadsheets have no selectable text; whole-document
 annotations still work. Word selection depends on the local LibreOfficeKit
@@ -52,13 +54,13 @@ The Chinese sections below describe the same behaviour in detail.
    - AI 回答完成后，回答会自动追加到这条批注里（`问：… / 答：…`）；
    - 对同一段原文再次提问，会追加到同一条批注的问答线程，而不是新建一条；
    - 「仅引用」只把引用插到输入框，由你决定何时发送。
-3. 选中文字点「批注」：写备注并保存；未选中文字时保存的是整篇文档批注。
+3. 选中文字点「批注」：写备注并保存；未选中文字时保存的是整篇文档批注。保存后会停留在当前阅读位置，不再自动跳到批注面板。
 4. 点「批注列表」按钮，或在右侧栏的引导页里打开「文档批注」：
    - 每条批注的「定位」会切回文档标签页，滚动到原文并选中它；
-   - 「高亮全部」把这篇文档的批注在预览里画出来（蓝色=批注，绿色=提问）；
+   - 「高亮全部」把这篇文档的批注在预览里画出来；每条批注可选黄、蓝、绿、粉、橙五种标记颜色，卡片上的圆点与文内高亮同步；
    - 文档标签页处于激活状态时，批注会自动以同样方式高亮；
-   - **在预览里点击一处高亮**，会打开「文档批注」并滚动到对应的批注卡片；
-   - 面板里还可以编辑、删除、引用批注，或切换查看其他文档。
+   - **鼠标悬停在一处高亮上**会浮出这条批注/问答的摘要；**在预览里点击一处高亮**，会打开「文档批注」并滚动到对应的批注卡片；
+   - 面板里还可以编辑、删除、引用批注，或切换查看其他文档；右上角 `A-` / `A+` 调整批注与回答的字号，选择会被记住。
 
 ## 文内高亮怎么实现的
 
