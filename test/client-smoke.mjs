@@ -281,20 +281,33 @@ test('every class used by the browser half is defined in its own stylesheet', ()
 test('annotation anchors survive colour edits and pick the right repeated quote', () => {
   const api = plugin.__test
   assert.ok(api, 'the test hook is exported for the harness')
-  const note = api.withAnchor(api.withColor('hello', 'p'), { before: '甲乙', after: '丙丁' })
+  const note = api.withAnchor(api.withColor('hello', 'p'), { before: '甲乙', after: '丙丁', length: 2 })
   assert.equal(api.colorOf(note), 'p')
-  assert.deepEqual(api.anchorOf(note), { before: '甲乙', after: '丙丁' })
+  assert.deepEqual(api.anchorOf(note), { before: '甲乙', after: '丙丁', length: 2 })
   assert.equal(api.stripColor(note), 'hello')
 
   const recolored = api.withColor(note, 'g')
   assert.equal(api.colorOf(recolored), 'g')
-  assert.deepEqual(api.anchorOf(recolored), { before: '甲乙', after: '丙丁' })
+  assert.deepEqual(api.anchorOf(recolored), { before: '甲乙', after: '丙丁', length: 2 })
 
   const stripped = '第一处行变换后面。第二段行变换：这是目标。'
   const positions = [...stripped.matchAll(/行变换/g)].map(match => match.index)
   assert.equal(positions.length, 2)
   const chosen = api.chooseOccurrence({ stripped }, positions, 3, { before: '第二段', after: '：这是目标。' })
   assert.equal(chosen, positions[1])
+
+  // Formula quotes no longer match text-for-text: the stored window and
+  // rendered length still find the intended span.
+  const anchored = api.chooseAnchorStart({ stripped }, { before: '第二段', after: '：这是目标。', length: 3 })
+  assert.equal(anchored, positions[1])
+
+  // When a formula's exact text is gone, the fallback must pick the tightest
+  // run pair rather than the first run in the whole document.
+  const formulaText = '前言提到维向量组中任意内容。正文 n 维向量组中任意 𝑛+1 n+1 个向量必线性相关。'
+  const formulaQuote = 'n 维向量组中任意 𝑛+1 n+1 个向量必线性相关'
+  const fallback = api.chooseMathFallbackSpan({ stripped: formulaText }, formulaQuote)
+  assert.ok(fallback)
+  assert.equal(fallback.start, formulaText.lastIndexOf('维向量组中任意'))
 })
 
 test('the browser half imports no Harness client package', () => {

@@ -805,8 +805,36 @@ window.__ModuleLoader__.load({
       return segment ? segment.start : null
     }
 
-    function buildSelectionAnchor(root, quote) {
-      if (!root || !quote) return null
+    function endPositionOf(range, index) {
+      const container = range.endContainer
+      const offset = range.endOffset
+      if (container && container.nodeType === 3) {
+        const segment = index.segments.find(entry => entry.node === container)
+        if (!segment) return null
+        const text = container.nodeValue || ''
+        let count = 0
+        for (let position = 0; position < Math.min(offset, text.length); position += 1) {
+          if (normalizedChar(text[position]) !== '') count += 1
+        }
+        return segment.start + count
+      }
+      if (!container || typeof document.createTreeWalker !== 'function') return null
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
+      let last = walker.nextNode()
+      if (!last) return null
+      for (let next = walker.nextNode(); next; next = walker.nextNode()) last = next
+      const segment = index.segments.find(entry => entry.node === last)
+      return segment ? segment.start + segment.count : null
+    }
+
+    /**
+     * Remember where the selection sits: a text window before/after it plus its
+     * rendered length. The length lets a formula quote be painted at the right
+     * span even when the captured text and the freshly rendered text differ in
+     * their hidden math layers.
+     */
+    function buildSelectionAnchor(root) {
+      if (!root) return null
       try {
         const selection = window.getSelection()
         if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null
@@ -814,14 +842,11 @@ window.__ModuleLoader__.load({
         if (!root.contains(range.commonAncestorContainer)) return null
         const index = buildTextIndex(root)
         const start = startPositionOf(range, index)
-        if (start === null) return null
-        const needle = searchable(quote)
-        if (needle.length < 2) return null
-        if (index.stripped.slice(start, start + needle.length) !== needle) return null
+        const end = endPositionOf(range, index)
+        if (start === null || end === null || end <= start) return null
         const before = index.stripped.slice(Math.max(0, start - ANCHOR_RADIUS), start)
-        const after = index.stripped.slice(start + needle.length, start + needle.length + ANCHOR_RADIUS)
-        if (before === '' && after === '') return null
-        return { before, after }
+        const after = index.stripped.slice(end, end + ANCHOR_RADIUS)
+        return { before, after, length: end - start }
       } catch {
         return null
       }
@@ -872,9 +897,14 @@ window.__ModuleLoader__.load({
     function decodeAnchor(value) {
       const text = base64Decode(value)
       if (text === null) return null
-      const split = text.indexOf('\u0000')
-      if (split < 0) return null
-      return { before: text.slice(0, split), after: text.slice(split + 1) }
+      const parts = text.split('\u0000')
+      if (parts.length < 2) return null
+      const length = parts.length >= 3 ? Number(parts[2]) : 0
+      return {
+        before: parts[0],
+        after: parts[1],
+        length: Number.isFinite(length) && length > 0 ? length : 0,
+      }
     }
 
     function anchorOf(note) {
@@ -883,8 +913,8 @@ window.__ModuleLoader__.load({
     }
 
     function anchorMarker(anchor) {
-      if (!anchor || (anchor.before === '' && anchor.after === '')) return ''
-      const payload = base64Encode(`${anchor.before}\u0000${anchor.after}`)
+      if (!anchor || (anchor.before === '' && anchor.after === '' && !anchor.length)) return ''
+      const payload = base64Encode(`${anchor.before || ''}\u0000${anchor.after || ''}\u0000${Math.max(0, Math.round(anchor.length || 0))}`)
       return payload === '' ? '' : `${ANCHOR_MARK}a:${payload}${ANCHOR_MARK}`
     }
 
@@ -1083,6 +1113,66 @@ window.__ModuleLoader__.load({
       return best
     }
 
+    function commonPrefix(left, right) {
+      const limit = Math.min(left.length, right.length)
+      let size = 0
+      while (size < limit && left[size] === right[size]) size += 1
+      return size
+    }
+
+    /**
+     * Locate the stored selection by its surrounding text and rendered length,
+     * without relying on the quote text matching exactly. This is the fallback
+     * for formula selections whose visible and hidden math layers differ.
+     */
+    function chooseAnchorStart(index, anchor) {
+      if (!index || !anchor || !anchor.length) return null
+      const stripped = index.stripped
+      const length = Math.min(anchor.length, stripped.length)
+      if (length <= 0) return null
+      let best = null
+      let bestScore = -1
+      const consider = (start, beforeScore) => {
+        if (start < 0 || start + length > stripped.length) return
+        const afterScore = anchor.after ? commonPrefix(stripped.slice(start + length), anchor.after) : 0
+        const score = beforeScore + afterScore
+        if (score > bestScore) {
+          bestScore = score
+          best = start
+        }
+      }
+      const before = anchor.before || ''
+      for (let size = before.length; size >= 2; size -= 1) {
+        const needle = before.slice(before.length - size)
+        let at = stripped.indexOf(needle)
+        let found = false
+        let count = 0
+        while (at >= 0 && count < 120) {
+          consider(at + size, size)
+          found = true
+          count += 1
+          at = stripped.indexOf(needle, at + 1)
+        }
+        if (found) break
+      }
+      if (best === null && anchor.after) {
+        let at = stripped.indexOf(anchor.after)
+        let count = 0
+        while (at >= 0 && count < 120) {
+          consider(at - length, 0)
+          count += 1
+          at = stripped.indexOf(anchor.after, at + 1)
+        }
+      }
+      return best
+    }
+
+    function rangeForAnchor(index, anchor) {
+      const start = chooseAnchorStart(index, anchor)
+      if (start === null) return null
+      return rangeAt(index, start, Math.min(anchor.length, index.stripped.length - start))
+    }
+
     /** The Range for the quote: the occurrence matching the stored context, or null. */
     function rangeForQuote(index, quote, anchor) {
       const needle = searchable(quote)
@@ -1097,9 +1187,12 @@ window.__ModuleLoader__.load({
           return rangeAt(index, chooseOccurrence(index, positions, needle.length, anchor), needle.length)
         }
       }
-      // With a stored context, an exact miss means the document changed; do not
-      // guess a nearby span and paint the wrong passage.
-      if (anchor) return null
+      if (anchor) {
+        // The quote text no longer matches exactly (KaTeX layers change between
+        // renders); the stored window and length still identify the span.
+        const anchored = rangeForAnchor(index, anchor)
+        if (anchored) return anchored
+      }
       return mathFallbackRange(index, quote)
     }
 
@@ -1114,30 +1207,48 @@ window.__ModuleLoader__.load({
       return range
     }
 
+    function allPositions(text, needle, limit = 120) {
+      const positions = []
+      let at = text.indexOf(needle)
+      while (at >= 0 && positions.length < limit) {
+        positions.push(at)
+        at = text.indexOf(needle, at + 1)
+      }
+      return positions
+    }
+
     /**
      * Math-heavy selections captured from KaTeX include both the hidden MathML
      * and the visible HTML layer; if an exact match fails, span the visible
-     * Chinese runs so the passage still gets a mark near the right sentence.
+     * Chinese runs. Picking the tightest pair of runs (instead of their first
+     * and last occurrences globally) keeps the mark local to the passage.
      */
-    function mathFallbackRange(index, quote) {
+    function chooseMathFallbackSpan(index, quote) {
       if (!/[\u{1D400}-\u{1D7FF}]/u.test(quote)) return null
       const runs = quote.match(/[\u3400-\u9fff]{2,}/gu) || []
       if (runs.length < 2) return null
-      const found = []
-      for (const run of runs) {
-        const at = index.stripped.indexOf(searchable(run))
-        if (at >= 0) found.push({ at, length: run.length })
-      }
-      if (found.length < 2) return null
-      const first = found[0]
-      const last = found[found.length - 1]
-      if (last.at <= first.at) return null
-      // The fallback is only a last resort: refuse spans much longer than the
-      // quote, which would otherwise paint the preceding passage too.
-      const span = last.at + last.length - first.at
       const needleLength = searchable(quote).length
-      if (span > Math.max(160, needleLength * 3)) return null
-      return rangeAt(index, first.at, span)
+      const bound = Math.max(160, needleLength * 3)
+      const firstPositions = allPositions(index.stripped, searchable(runs[0]))
+      const lastRun = runs[runs.length - 1]
+      const lastPositions = allPositions(index.stripped, searchable(lastRun))
+      if (firstPositions.length === 0 || lastPositions.length === 0) return null
+      let best = null
+      for (const start of firstPositions) {
+        for (const end of lastPositions) {
+          if (end + lastRun.length <= start) continue
+          const span = end + lastRun.length - start
+          if (span > bound) continue
+          if (best === null || span < best.span) best = { start, span }
+        }
+      }
+      return best
+    }
+
+    function mathFallbackRange(index, quote) {
+      const best = chooseMathFallbackSpan(index, quote)
+      if (best === null) return null
+      return rangeAt(index, best.start, best.span)
     }
 
     function clearHighlights() {
@@ -2065,7 +2176,7 @@ window.__ModuleLoader__.load({
         openDialog({
           mode: 'ask', sessionId, path, name, address,
           quote: fresh ? selection.text : '',
-          anchor: fresh ? buildSelectionAnchor(previewRootWithin(toolbarRef.current), selection.text) : null,
+          anchor: fresh ? buildSelectionAnchor(previewRootWithin(toolbarRef.current)) : null,
           truncated: fresh ? selection.truncated === true : false,
           needsSelection: !fresh,
         })
@@ -2074,7 +2185,7 @@ window.__ModuleLoader__.load({
         openDialog({
           mode: 'note', sessionId, path, name, address,
           quote: fresh ? selection.text : '',
-          anchor: fresh ? buildSelectionAnchor(previewRootWithin(toolbarRef.current), selection.text) : null,
+          anchor: fresh ? buildSelectionAnchor(previewRootWithin(toolbarRef.current)) : null,
           truncated: fresh ? selection.truncated === true : false,
         })
       }
@@ -2086,7 +2197,7 @@ window.__ModuleLoader__.load({
       const reanchorActive = Boolean(reanchor && path && normalizePath(reanchor.path) === normalizePath(path))
       const bindAnchor = async () => {
         if (!reanchor) return
-        const anchor = buildSelectionAnchor(previewRootWithin(toolbarRef.current), reanchor.quote)
+        const anchor = buildSelectionAnchor(previewRootWithin(toolbarRef.current))
         if (!anchor) {
           showToast(tRef.current('toast.reanchorNeedSelection'))
           return
@@ -3145,6 +3256,8 @@ window.__ModuleLoader__.load({
       stripColor,
       contextScore,
       chooseOccurrence,
+      chooseAnchorStart,
+      chooseMathFallbackSpan,
     }
 
     return {

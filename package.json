@@ -1,6 +1,6 @@
 {
   "name": "@local/doc-reader",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "type": "module",
   "description": "Ask the AI about selected document text, keep annotations with in-text highlights, and jump back to the quoted passage",
