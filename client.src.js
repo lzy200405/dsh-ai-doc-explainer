@@ -130,6 +130,7 @@ window.__ModuleLoader__.load({
       'panel.saveEdit': '保存',
       'panel.cancelEdit': '取消',
       'panel.updated': '更新于 {time}',
+      'panel.emptyNote': '（无备注）',
       'panel.selectDocument': '选择一篇文档查看批注。',
       'panel.openFailed': '无法打开批注面板，请稍后重试。',
       'error.network': '无法连接批注服务，请检查连接后重试。',
@@ -242,6 +243,7 @@ window.__ModuleLoader__.load({
       'panel.saveEdit': 'Save',
       'panel.cancelEdit': 'Cancel',
       'panel.updated': 'Updated {time}',
+      'panel.emptyNote': '(No note)',
       'panel.selectDocument': 'Choose a document to review its annotations.',
       'panel.openFailed': 'The annotation panel could not be opened. Try again.',
       'error.network': 'Cannot reach the annotation service. Check the connection and retry.',
@@ -414,6 +416,7 @@ window.__ModuleLoader__.load({
         color: var(--dsw-alias-label-secondary); font-size: var(--dr-read-font); line-height: 1.6;
       }
       .dr-card-note { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+      .dr-note-empty { color: var(--dsw-alias-label-secondary); }
       .dr-md {
         display: flex; flex-direction: column; gap: 7px; white-space: normal; overflow-wrap: anywhere;
         font-size: var(--dr-read-font); line-height: 1.65;
@@ -714,8 +717,11 @@ window.__ModuleLoader__.load({
         lines.push('')
         for (const line of String(quote).split('\n')) lines.push(`> ${line}`)
       }
-      lines.push('')
-      lines.push(format(t('message.note'), { note }))
+      const cleanNote = String(note || '').trim()
+      if (cleanNote !== '') {
+        lines.push('')
+        lines.push(format(t('message.note'), { note: cleanNote }))
+      }
       return `${lines.join('\n')}\n\n`
     }
 
@@ -1436,6 +1442,10 @@ window.__ModuleLoader__.load({
     /** One annotation's note: rendered Markdown, with question/answer rounds labelled. */
     function NoteBody(props) {
       const t = tRef.current
+      if (stripColor(props.note).trim() === '') {
+        return h('div', { className: 'dr-md' },
+          h('p', { className: 'dr-md-p dr-note-empty' }, t('panel.emptyNote')))
+      }
       const segments = splitThread(props.note)
       if (segments.length <= 1) {
         return h('div', { className: 'dr-md' }, ...renderNoteBlocks(props.note, 'n'))
@@ -1917,7 +1927,9 @@ window.__ModuleLoader__.load({
               tipAnnotation.quote
                 ? h('div', { className: 'dr-hover-quote' }, tipAnnotation.quote)
                 : null,
-              h('div', { className: 'dr-hover-note' }, notePreview(tipAnnotation.note)),
+              notePreview(tipAnnotation.note)
+                ? h('div', { className: 'dr-hover-note' }, notePreview(tipAnnotation.note))
+                : null,
               h('div', { className: 'dr-hover-hint' }, tRef.current('hover.hint'))))
         : null
 
@@ -2190,10 +2202,6 @@ window.__ModuleLoader__.load({
 
       async function saveNote() {
         const text = note.trim()
-        if (text === '') {
-          setError(t('error.invalid-note'))
-          return
-        }
         if (!dialog.path) {
           setError(t('error.no-document'))
           return
@@ -2561,7 +2569,6 @@ window.__ModuleLoader__.load({
       }
 
       const saveEdit = async (annotation) => {
-        if (editNote.trim() === '') return
         try {
           await requestJson('update', {
             id: annotation.id,
@@ -2704,7 +2711,7 @@ window.__ModuleLoader__.load({
                     type: 'button', className: 'dr-btn', onClick: () => { setEditingId(null) },
                   }, t('panel.cancelEdit')),
                   h('button', {
-                    type: 'button', className: 'dr-btn dr-btn-primary', disabled: editNote.trim() === '',
+                    type: 'button', className: 'dr-btn dr-btn-primary',
                     onClick: () => { void saveEdit(annotation) },
                   }, t('panel.saveEdit')),
                 ),
@@ -2714,7 +2721,7 @@ window.__ModuleLoader__.load({
                 : h('div', {
                   className: 'dr-card-preview',
                   onClick: () => setOpenMap(map => ({ ...map, [annotation.id]: true })),
-                }, notePreview(annotation.note)),
+                }, notePreview(annotation.note) || t('panel.emptyNote')),
             editing ? null : h('div', { className: 'dr-card-actions' },
               annotation.quote
                 ? h('button', { type: 'button', className: 'dr-link', onClick: () => locate(annotation) }, t('panel.locate'))
