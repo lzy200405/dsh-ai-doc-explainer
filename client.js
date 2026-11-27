@@ -1,4 +1,4 @@
-/*! @local/doc-reader v1.2.0 — browser half (built from client.src.js) */
+/*! @local/doc-reader v1.3.0 — browser half (built from client.src.js) */
 /*! KaTeX 0.19.1 | MIT License | https://katex.org | see vendor/LICENSE.katex */
 ;(function (root) {
   var module = void 0, exports = void 0;
@@ -162,6 +162,17 @@ window.__ModuleLoader__.load({
       'thread.answer': '答：{text}',
       'thread.qShort': '问',
       'thread.aShort': '答',
+      'color.yellow': '黄色',
+      'color.blue': '蓝色',
+      'color.green': '绿色',
+      'color.pink': '粉色',
+      'color.orange': '橙色',
+      'dialog.color': '标记颜色',
+      'panel.color': '切换标记颜色',
+      'panel.fontSmaller': '缩小批注文字',
+      'panel.fontLarger': '放大批注文字',
+      'hover.hint': '点击查看这条批注',
+      'toast.saved': '批注已保存。',
       'toast.notFound': '没找到这段原文：所在页面可能还没渲染，滚动到附近再试。',
       'toast.locating': '正在文档中查找这段原文…',
     }
@@ -263,6 +274,17 @@ window.__ModuleLoader__.load({
       'thread.answer': 'A: {text}',
       'thread.qShort': 'Q',
       'thread.aShort': 'A',
+      'color.yellow': 'Yellow',
+      'color.blue': 'Blue',
+      'color.green': 'Green',
+      'color.pink': 'Pink',
+      'color.orange': 'Orange',
+      'dialog.color': 'Marker colour',
+      'panel.color': 'Change marker colour',
+      'panel.fontSmaller': 'Smaller annotation text',
+      'panel.fontLarger': 'Larger annotation text',
+      'hover.hint': 'Click to open this annotation',
+      'toast.saved': 'Annotation saved.',
       'toast.notFound': 'The quoted text was not found; its page may not be rendered yet. Scroll near it and try again.',
       'toast.locating': 'Looking for the passage in the document…',
     }
@@ -349,11 +371,18 @@ window.__ModuleLoader__.load({
         color: var(--dsw-alias-state-success-primary);
         background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
       }
-      .dr-panel { display: flex; flex-direction: column; box-sizing: border-box; height: 100%; min-height: 0; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font-size: 13px; }
-      .dr-panel-head { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
+      .dr-panel {
+        display: flex; flex-direction: column; box-sizing: border-box; height: 100%; min-height: 0;
+        background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font-size: 14px;
+        --dr-read-font: 15px;
+      }
+      .dr-panel-head { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--dsw-alias-border-l1); }
       .dr-panel-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-      .dr-panel-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .dr-panel-tools { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+      .dr-panel-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .dr-panel-tools { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+      .dr-panel-tools-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+      .dr-font-tools { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+      .dr-font-btn { min-width: 26px; padding: 2px 5px; font-size: 12px; }
       .dr-link {
         padding: 2px 6px; border: 1px solid transparent; border-radius: 6px;
         background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; cursor: pointer;
@@ -361,14 +390,18 @@ window.__ModuleLoader__.load({
       .dr-link:hover { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary); }
       .dr-link:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
       .dr-link-danger { color: var(--dsw-alias-state-error-primary); }
-      .dr-panel-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+      .dr-panel-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
       .dr-meta { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
-      .dr-card { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); }
+      .dr-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-1); }
       .dr-card-focus { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
       .dr-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; }
-      .dr-card-preview { cursor: pointer; }
-      .dr-card-preview:hover { color: var(--dsw-alias-label-primary); }
-      .dr-card-head-right { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+      .dr-card-preview {
+        cursor: pointer; color: var(--dsw-alias-label-secondary);
+        font-size: var(--dr-read-font); line-height: 1.6;
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        overflow-wrap: anywhere;
+      }
+      .dr-card-head-right { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
       .dr-chevron { padding: 2px; border-radius: 6px; color: var(--dsw-alias-label-secondary); }
       .dr-chevron svg { transition: transform 0.15s ease; }
       .dr-chevron-open svg { transform: rotate(90deg); }
@@ -383,24 +416,27 @@ window.__ModuleLoader__.load({
         background: color-mix(in srgb, var(--dsw-alias-brand-primary) 13%, transparent);
       }
       .dr-card-quote {
-        margin: 0; padding: 6px 8px; border-left: 2px solid var(--dsw-alias-border-l2);
+        margin: 0; padding: 4px 0 4px 10px; border-left: 2px solid var(--dsw-alias-border-l2);
         max-height: 96px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere;
-        color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.5;
+        color: var(--dsw-alias-label-secondary); font-size: var(--dr-read-font); line-height: 1.6;
       }
-      .dr-card-note { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
-      .dr-md { display: flex; flex-direction: column; gap: 6px; white-space: normal; overflow-wrap: anywhere; }
-      .dr-md-p { margin: 0; white-space: pre-wrap; line-height: 1.55; }
-      .dr-md-h { margin: 2px 0 0; font-weight: 600; line-height: 1.4; }
-      .dr-md-h1 { font-size: 15px; }
-      .dr-md-h2 { font-size: 14px; }
-      .dr-md-h3 { font-size: 13px; }
-      .dr-md-h4 { font-size: 13px; }
+      .dr-card-note { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+      .dr-md {
+        display: flex; flex-direction: column; gap: 7px; white-space: normal; overflow-wrap: anywhere;
+        font-size: var(--dr-read-font); line-height: 1.65;
+      }
+      .dr-md-p { margin: 0; white-space: pre-wrap; line-height: inherit; }
+      .dr-md-h { margin: 6px 0 0; font-weight: 600; line-height: 1.4; }
+      .dr-md-h1 { font-size: 1.2em; }
+      .dr-md-h2 { font-size: 1.12em; }
+      .dr-md-h3 { font-size: 1.04em; }
+      .dr-md-h4 { font-size: 1em; }
       .dr-md-code {
         margin: 0; padding: 8px; border-radius: 8px; background: var(--dsw-alias-bg-layer-2);
-        overflow: auto; font-size: 12px; line-height: 1.5; white-space: pre; max-height: 240px;
+        overflow: auto; font-size: 0.86em; line-height: 1.5; white-space: pre; max-height: 240px;
       }
       .dr-md-math {
-        margin: 0; padding: 6px 8px; border-radius: 8px; overflow: auto; font-size: 12px; line-height: 1.5;
+        margin: 0; padding: 6px 8px; border-radius: 8px; overflow: auto; font-size: 0.9em; line-height: 1.5;
         white-space: pre; max-height: 200px;
         background: color-mix(in srgb, var(--dsw-alias-brand-primary) 8%, transparent);
         color: var(--dsw-alias-label-primary);
@@ -415,16 +451,16 @@ window.__ModuleLoader__.load({
       }
       .dr-md-hr { border: 0; border-top: 1px solid var(--dsw-alias-border-l1); margin: 2px 0; width: 100%; }
       .dr-md-table-wrap { overflow-x: auto; max-width: 100%; }
-      .dr-md-table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+      .dr-md-table { border-collapse: collapse; font-size: 0.92em; min-width: 100%; }
       .dr-md-table th, .dr-md-table td {
-        border: 1px solid var(--dsw-alias-border-l1); padding: 3px 6px; text-align: left; vertical-align: top;
+        border: 1px solid var(--dsw-alias-border-l1); padding: 4px 7px; text-align: left; vertical-align: top;
       }
       .dr-md-table th { background: var(--dsw-alias-bg-layer-2); font-weight: 600; }
       .dr-md-link { color: var(--dsw-alias-brand-primary); text-decoration: none; }
       .dr-md-link:hover { text-decoration: underline; }
       .dr-inline-code, .dr-inline-math {
         padding: 0 3px; border-radius: 4px; background: var(--dsw-alias-bg-layer-2);
-        font-size: 12px; overflow-wrap: anywhere;
+        font-size: 0.9em; overflow-wrap: anywhere;
       }
       .dr-thread-question { border-left: 2px solid var(--dsw-alias-state-success-primary); padding-left: 8px; }
       .dr-thread-answer { border-left: 2px solid var(--dsw-alias-brand-primary); padding-left: 8px; }
@@ -469,9 +505,54 @@ window.__ModuleLoader__.load({
         border-radius: 999px; background: var(--dsw-alias-brand-primary); color: var(--dsw-alias-bg-base);
         font-size: 9px; font-weight: 600; line-height: 14px; text-align: center;
       }
+      .dr-color-row { display: flex; align-items: center; gap: 9px; padding: 2px 0; flex-wrap: wrap; }
+      .dr-color-label { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+      .dr-color-dot {
+        width: 14px; height: 14px; padding: 0; border-radius: 50%; flex: 0 0 auto;
+        border: 1px solid color-mix(in srgb, var(--dsw-alias-label-primary) 22%, transparent); cursor: pointer;
+      }
+      .dr-color-dot:hover { transform: scale(1.12); }
+      .dr-color-swatch {
+        width: 20px; height: 20px; padding: 0; border-radius: 50%; cursor: pointer;
+        border: 2px solid transparent; box-shadow: 0 0 0 1px color-mix(in srgb, var(--dsw-alias-label-primary) 18%, transparent);
+      }
+      .dr-color-active {
+        border-color: var(--dsw-alias-bg-base);
+        box-shadow: 0 0 0 2px var(--dsw-alias-label-primary);
+      }
+      .dr-color-y { background: #f2c94c; }
+      .dr-color-b { background: #4f8ef7; }
+      .dr-color-g { background: #35b87f; }
+      .dr-color-p { background: #e070a8; }
+      .dr-color-o { background: #ef8a3c; }
+      .dr-hover {
+        position: fixed; z-index: 2147483000; display: flex; flex-direction: column; gap: 6px;
+        width: min(360px, calc(100vw - 24px)); padding: 10px 12px;
+        border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px;
+        background: var(--dsw-alias-bg-overlay); color: var(--dsw-alias-label-primary);
+        box-shadow: 0 12px 30px color-mix(in srgb, var(--dsw-alias-label-primary) 20%, transparent);
+        font-size: 12.5px; line-height: 1.55; pointer-events: none;
+      }
+      .dr-hover-head { display: flex; align-items: center; gap: 6px; }
+      .dr-hover-quote {
+        color: var(--dsw-alias-label-secondary); border-left: 2px solid var(--dsw-alias-border-l2);
+        padding-left: 8px; overflow-wrap: anywhere;
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+        white-space: pre-wrap;
+      }
+      .dr-hover-note {
+        overflow-wrap: anywhere;
+        display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+        white-space: pre-wrap;
+      }
+      .dr-hover-hint { color: var(--dsw-alias-label-secondary); font-size: 11px; }
+      .dr-textarea { font-size: 14px; line-height: 1.6; }
       /* CSS Custom Highlight paints in place without touching the preview's DOM. */
-      ::highlight(doc-reader-note) { background-color: rgba(47, 107, 216, 0.24); }
-      ::highlight(doc-reader-ask) { background-color: rgba(30, 160, 110, 0.24); }
+      ::highlight(doc-reader-y) { background-color: rgba(242, 201, 76, 0.38); }
+      ::highlight(doc-reader-b) { background-color: rgba(79, 142, 247, 0.24); }
+      ::highlight(doc-reader-g) { background-color: rgba(53, 184, 127, 0.26); }
+      ::highlight(doc-reader-p) { background-color: rgba(224, 112, 168, 0.26); }
+      ::highlight(doc-reader-o) { background-color: rgba(239, 138, 60, 0.28); }
     `
 
     // ---------------------------------------------------------------- helpers
@@ -681,8 +762,71 @@ window.__ModuleLoader__.load({
 
     // ----------------------------------------------------- in-text highlights
 
-    const HIGHLIGHT_NOTE = 'doc-reader-note'
-    const HIGHLIGHT_ASK = 'doc-reader-ask'
+    const COLOR_KEYS = ['y', 'b', 'g', 'p', 'o']
+    const COLOR_DEFAULT_NOTE = 'b'
+    const COLOR_DEFAULT_ASK = 'g'
+    const COLOR_MARK = '\u2063'
+    /** Host note limit is 4000; keep room for the invisible colour prefix. */
+    const NOTE_BODY_LIMIT = 3996
+
+    /** A question thread carries a question, a source flag, or a thread marker. */
+    function isAskAnnotation(annotation) {
+      return Boolean(annotation && (annotation.question || annotation.source === 'ask'
+        || /(?:^|\n)(?:问[：:]|Q:)/.test(stripColor(annotation.note || ''))))
+    }
+
+    /**
+     * The colour lives in an invisible prefix of the note so it travels with the
+     * annotation and works against Host versions that do not know the field yet.
+     * It is stripped before anything reaches the screen or the editor.
+     */
+    function colorOf(note) {
+      const match = /^\u2063([a-z]):\u2063/.exec(String(note || ''))
+      return match && COLOR_KEYS.includes(match[1]) ? match[1] : null
+    }
+
+    function stripColor(note) {
+      return String(note || '').replace(/^\u2063[a-z]:\u2063/, '')
+    }
+
+    function withColor(note, key) {
+      const color = COLOR_KEYS.includes(key) ? key : COLOR_DEFAULT_NOTE
+      return `${COLOR_MARK}${color}:${COLOR_MARK}${stripColor(note)}`
+    }
+
+    /** Effective colour of an annotation, falling back by kind for older records. */
+    function annotationColor(annotation) {
+      return colorOf(annotation && annotation.note)
+        || (isAskAnnotation(annotation) ? COLOR_DEFAULT_ASK : COLOR_DEFAULT_NOTE)
+    }
+
+    function nextColor(key) {
+      const index = COLOR_KEYS.indexOf(key)
+      return COLOR_KEYS[(index + 1) % COLOR_KEYS.length]
+    }
+
+    function highlightName(color) {
+      return `doc-reader-${color}`
+    }
+
+    /** Selected reading size for annotation text, kept across sessions. */
+    const READ_FONT_KEY = 'docReader.readFont'
+    const READ_FONT_DEFAULT = 15
+    function readFontSize() {
+      try {
+        const stored = Number(window.localStorage.getItem(READ_FONT_KEY))
+        return stored >= 12 && stored <= 20 ? stored : READ_FONT_DEFAULT
+      } catch {
+        return READ_FONT_DEFAULT
+      }
+    }
+    function storeFontSize(size) {
+      try {
+        window.localStorage.setItem(READ_FONT_KEY, String(size))
+      } catch {
+        // A locked-down storage still lets the session use the size.
+      }
+    }
 
     /** CSS Custom Highlight support (Chromium 105+), used without touching the preview's DOM. */
     function supportsHighlightApi() {
@@ -836,8 +980,7 @@ window.__ModuleLoader__.load({
     function clearHighlights() {
       highlightRanges = []
       if (!supportsHighlightApi()) return
-      globalThis.CSS.highlights.delete(HIGHLIGHT_NOTE)
-      globalThis.CSS.highlights.delete(HIGHLIGHT_ASK)
+      for (const key of COLOR_KEYS) globalThis.CSS.highlights.delete(highlightName(key))
     }
 
     /** Paint every annotation that can be found in the current preview. */
@@ -848,19 +991,22 @@ window.__ModuleLoader__.load({
       if (!target) return 0
       clearHighlights()
       const index = buildTextIndex(target)
-      const notes = []
-      const asks = []
+      const groups = new Map(COLOR_KEYS.map(key => [key, []]))
       for (const annotation of annotations) {
         if (!annotation || typeof annotation.quote !== 'string' || annotation.quote.trim() === '') continue
         const range = rangeForQuote(index, annotation.quote)
         if (range === null) continue
-        highlightRanges.push({ annotation, range })
-        if (annotation.question || annotation.source === 'ask' || /^问[：:]/m.test(annotation.note || '')) asks.push(range)
-        else notes.push(range)
+        const color = annotationColor(annotation)
+        highlightRanges.push({ annotation, range, color })
+        groups.get(color).push(range)
       }
-      if (notes.length > 0) globalThis.CSS.highlights.set(HIGHLIGHT_NOTE, new globalThis.Highlight(...notes))
-      if (asks.length > 0) globalThis.CSS.highlights.set(HIGHLIGHT_ASK, new globalThis.Highlight(...asks))
-      return notes.length + asks.length
+      let painted = 0
+      for (const [color, ranges] of groups) {
+        if (ranges.length === 0) continue
+        globalThis.CSS.highlights.set(highlightName(color), new globalThis.Highlight(...ranges))
+        painted += ranges.length
+      }
+      return painted
     }
 
     /** Scroll the quote into view and select it (the browser paints the selection). */
@@ -1286,7 +1432,7 @@ window.__ModuleLoader__.load({
 
     /** One line of plain text for a collapsed card. */
     function notePreview(note) {
-      const text = String(note || '')
+      const text = String(stripColor(note) || '')
         .replace(/```[\s\S]*?```/g, ' ')
         .replace(/[#>*_`$\\]/g, ' ')
         .replace(/\s+/g, ' ')
@@ -1378,10 +1524,13 @@ window.__ModuleLoader__.load({
           return
         }
         const line = format(tRef.current('thread.answer'), { text: answer })
-        const combined = `${String(current.note || '').trimEnd()}\n\n${line}`
+        const combined = `${stripColor(current.note).trimEnd()}\n\n${line}`
+        const clipped = combined.length <= NOTE_BODY_LIMIT
+          ? combined
+          : combined.slice(combined.length - NOTE_BODY_LIMIT)
         await requestJson('update', {
           id: capture.annotationId,
-          note: combined.length <= 4000 ? combined : combined.slice(combined.length - 4000),
+          note: withColor(clipped, colorOf(current.note) || annotationColor(current)),
         })
         removeCapture(capture.id)
         bumpVersion()
@@ -1503,6 +1652,12 @@ window.__ModuleLoader__.load({
     const captureStore = createStore([])
     /** Ranges painted in the current preview, used to turn a click on a highlight into a panel focus. */
     let highlightRanges = []
+    /** Last known annotations per document, so switching back paints instantly. */
+    const annotationsCache = new Map()
+
+    function annotationsSignature(list) {
+      return list.map(annotation => `${annotation.id}:${annotation.updatedAt || ''}`).join('|')
+    }
 
     function openDialog(next) {
       const returnFocus = typeof document !== 'undefined' ? document.activeElement : null
@@ -1538,6 +1693,7 @@ window.__ModuleLoader__.load({
       const annotationsRef = React.useRef([])
       const toolbarRef = React.useRef(null)
       const [annotationCount, setAnnotationCount] = React.useState(0)
+      const [tip, setTip] = React.useState(null)
       const sessionId = props.sessionId || (ctxRef.current && ctxRef.current.sidebarRight.mounted.getSnapshot())
       const path = typeof props.absolutePath === 'string' ? props.absolutePath : ''
       const name = baseName(path)
@@ -1578,12 +1734,23 @@ window.__ModuleLoader__.load({
           }
         }
         const load = async () => {
+          const cached = annotationsCache.get(path)
+          if (cached) {
+            annotationsRef.current = cached.annotations
+            setAnnotationCount(cached.annotations.length)
+            paint()
+          }
           try {
             const data = await requestJson('list', { documentPath: path })
             if (disposed) return
-            annotationsRef.current = Array.isArray(data && data.annotations) ? data.annotations : []
-            setAnnotationCount(annotationsRef.current.length)
-            paint()
+            const next = Array.isArray(data && data.annotations) ? data.annotations : []
+            const changed = annotationsSignature(next) !== annotationsSignature(annotationsRef.current)
+            annotationsCache.set(path, { annotations: next, at: Date.now() })
+            if (changed) {
+              annotationsRef.current = next
+              setAnnotationCount(next.length)
+              paint()
+            }
           } catch (error) {
             console.warn('[doc-reader] highlight load failed', error)
           }
@@ -1605,23 +1772,36 @@ window.__ModuleLoader__.load({
         }
       }, [path, version])
 
-      // A click on a painted highlight opens the notes page on that annotation.
+      // Hovering a painted highlight previews its annotation; clicking it opens
+      // the notes page. The same caret hit-testing drives both.
       React.useEffect(() => {
         if (typeof document === 'undefined') return undefined
         const root = previewRootWithin(toolbarRef.current)
         if (!root || typeof root.addEventListener !== 'function') return undefined
-        const onClick = (event) => {
-          if (typeof event.clientX !== 'number' || typeof document.caretRangeFromPoint !== 'function') return
-          const caret = document.caretRangeFromPoint(event.clientX, event.clientY)
-          if (!caret) return
-          const hit = highlightRanges.find((entry) => {
+        let lastMove = 0
+        let tipRef = null
+        const hideTip = () => {
+          if (tipRef === null) return
+          tipRef = null
+          setTip(null)
+        }
+        const findHit = (x, y) => {
+          if (typeof document.caretRangeFromPoint !== 'function') return null
+          const caret = document.caretRangeFromPoint(x, y)
+          if (!caret) return null
+          return highlightRanges.find((entry) => {
             try {
               return entry.range.isPointInRange(caret.startContainer, caret.startOffset)
             } catch {
               return false
             }
-          })
+          }) || null
+        }
+        const onClick = (event) => {
+          if (typeof event.clientX !== 'number') return
+          const hit = findHit(event.clientX, event.clientY)
           if (!hit || !hit.annotation || !hit.annotation.id) return
+          hideTip()
           focusStore.set({
             documentPath: path,
             annotationId: hit.annotation.id,
@@ -1629,8 +1809,40 @@ window.__ModuleLoader__.load({
           })
           openNotesPanel(ctxRef.current, { path, name, address })
         }
+        const onMove = (event) => {
+          const now = Date.now()
+          if (now - lastMove < 110) return
+          lastMove = now
+          const hit = findHit(event.clientX, event.clientY)
+          if (!hit || !hit.annotation || !hit.annotation.id) {
+            hideTip()
+            return
+          }
+          let rect = null
+          try {
+            rect = hit.range.getBoundingClientRect()
+          } catch {
+            rect = null
+          }
+          const x = rect ? rect.left : event.clientX
+          const y = rect ? rect.bottom : event.clientY + 12
+          if (tipRef !== null && tipRef.id === hit.annotation.id
+            && Math.abs(tipRef.x - x) < 6 && Math.abs(tipRef.y - y) < 6) return
+          tipRef = { id: hit.annotation.id, x, y }
+          setTip({ id: hit.annotation.id, x, y, annotation: hit.annotation })
+        }
+        const onLeave = () => hideTip()
+        const onScroll = () => hideTip()
         root.addEventListener('click', onClick, true)
-        return () => root.removeEventListener('click', onClick, true)
+        root.addEventListener('mousemove', onMove)
+        root.addEventListener('mouseleave', onLeave)
+        root.addEventListener('scroll', onScroll, true)
+        return () => {
+          root.removeEventListener('click', onClick, true)
+          root.removeEventListener('mousemove', onMove)
+          root.removeEventListener('mouseleave', onLeave)
+          root.removeEventListener('scroll', onScroll, true)
+        }
       }, [path, name, address])
 
       // A panel-issued locate request: wait for the preview, scroll to the quote
@@ -1694,30 +1906,55 @@ window.__ModuleLoader__.load({
         openNotesPanel(ctxRef.current, path ? { path, name, address } : undefined)
       }
 
-      return h('span', { ref: toolbarRef, className: 'dr-actions' },
-        h('button', {
-          type: 'button', className: 'dr-icon-btn',
-          title: tRef.current(fresh ? 'action.ask' : 'action.askHint'),
-          'aria-label': tRef.current('action.ask'),
-          onMouseDown: event => event.preventDefault(),
-          onClick: ask,
-        }, icon('ask')),
-        h('button', {
-          type: 'button', className: 'dr-icon-btn',
-          title: tRef.current('action.noteHint'),
-          'aria-label': tRef.current('action.note'),
-          onMouseDown: event => event.preventDefault(),
-          onClick: annotate,
-        }, icon('note')),
-        h('button', {
-          type: 'button', className: 'dr-icon-btn',
-          title: tRef.current('action.notesHint'),
-          'aria-label': tRef.current('action.notes'),
-          onMouseDown: event => event.preventDefault(),
-          onClick: list,
-        }, icon('list'), annotationCount > 0
-          ? h('span', { className: 'dr-count' }, annotationCount > 99 ? '99+' : String(annotationCount))
-          : null),
+      const tipAnnotation = tip && tip.annotation ? tip.annotation : null
+      const tipColor = tipAnnotation ? annotationColor(tipAnnotation) : COLOR_DEFAULT_NOTE
+      const tipNode = tipAnnotation
+        ? h(Layer, null,
+            h('div', {
+              className: 'dr-hover',
+              style: {
+                left: `${Math.max(8, Math.min(tip.x, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 372))}px`,
+                top: `${Math.max(8, Math.min(tip.y + 10, (typeof window !== 'undefined' ? window.innerHeight : 800) - 210))}px`,
+              },
+            },
+              h('div', { className: 'dr-hover-head' },
+                h('span', { className: `dr-color-dot dr-color-${tipColor}`, 'aria-hidden': 'true' }),
+                h('span', { className: `dr-badge${isAskAnnotation(tipAnnotation) ? ' dr-badge-ask' : ''}` },
+                  isAskAnnotation(tipAnnotation) ? tRef.current('panel.typeAsk') : tRef.current('panel.typeSelection'))),
+              tipAnnotation.quote
+                ? h('div', { className: 'dr-hover-quote' }, tipAnnotation.quote)
+                : null,
+              h('div', { className: 'dr-hover-note' }, notePreview(tipAnnotation.note)),
+              h('div', { className: 'dr-hover-hint' }, tRef.current('hover.hint'))))
+        : null
+
+      return h(React.Fragment, null,
+        h('span', { ref: toolbarRef, className: 'dr-actions' },
+          h('button', {
+            type: 'button', className: 'dr-icon-btn',
+            title: tRef.current(fresh ? 'action.ask' : 'action.askHint'),
+            'aria-label': tRef.current('action.ask'),
+            onMouseDown: event => event.preventDefault(),
+            onClick: ask,
+          }, icon('ask')),
+          h('button', {
+            type: 'button', className: 'dr-icon-btn',
+            title: tRef.current('action.noteHint'),
+            'aria-label': tRef.current('action.note'),
+            onMouseDown: event => event.preventDefault(),
+            onClick: annotate,
+          }, icon('note')),
+          h('button', {
+            type: 'button', className: 'dr-icon-btn',
+            title: tRef.current('action.notesHint'),
+            'aria-label': tRef.current('action.notes'),
+            onMouseDown: event => event.preventDefault(),
+            onClick: list,
+          }, icon('list'), annotationCount > 0
+            ? h('span', { className: 'dr-count' }, annotationCount > 99 ? '99+' : String(annotationCount))
+            : null),
+        ),
+        tipNode,
       )
     }
 
@@ -1783,6 +2020,7 @@ window.__ModuleLoader__.load({
       const [busy, setBusy] = React.useState(false)
       const [saved, setSaved] = React.useState(false)
       const [error, setError] = React.useState('')
+      const [color, setColor] = React.useState(COLOR_DEFAULT_NOTE)
       const textareaRef = React.useRef(null)
       const dialogRef = React.useRef(null)
       const t = tRef.current
@@ -1793,6 +2031,9 @@ window.__ModuleLoader__.load({
         setBusy(false)
         setSaved(false)
         setError('')
+        setColor(dialog && COLOR_KEYS.includes(dialog.color)
+          ? dialog.color
+          : (dialog && dialog.mode === 'note' ? COLOR_DEFAULT_NOTE : COLOR_DEFAULT_ASK))
         if (dialog) {
           const timer = setTimeout(() => {
             if (textareaRef.current) textareaRef.current.focus()
@@ -1912,20 +2153,19 @@ window.__ModuleLoader__.load({
         const asked = question.trim()
         const askText = buildAskText(t, { name, quote, question })
         const questionLine = format(t('thread.question'), { text: asked || t('annotation.askFallback') })
-        const clip = text => (text.length <= 4000 ? text : text.slice(text.length - 4000))
+        const clip = text => (text.length <= NOTE_BODY_LIMIT ? text : text.slice(text.length - NOTE_BODY_LIMIT))
         try {
           const data = await requestJson('list', { documentPath: dialog.path })
           const candidates = Array.isArray(data && data.annotations) ? data.annotations : []
           const existing = quote !== ''
-            ? candidates.find(annotation => annotation.quote === quote
-              && (annotation.question || annotation.source === 'ask' || /(?:^|\n)(?:问[：:]|Q:)/.test(annotation.note || '')))
+            ? candidates.find(annotation => annotation.quote === quote && isAskAnnotation(annotation))
             : undefined
           let annotationId
           if (existing) {
             const base = existing.note === existing.question
               ? format(t('thread.question'), { text: existing.question })
-              : String(existing.note || '').trimEnd()
-            await requestJson('update', { id: existing.id, note: clip(`${base}\n\n${questionLine}`) })
+              : stripColor(existing.note).trimEnd()
+            await requestJson('update', { id: existing.id, note: withColor(clip(`${base}\n\n${questionLine}`), color) })
             annotationId = existing.id
           } else {
             const created = await requestJson('add', {
@@ -1933,7 +2173,7 @@ window.__ModuleLoader__.load({
               documentName: name,
               type: quote ? 'selection' : 'document',
               quote,
-              note: clip(questionLine),
+              note: withColor(clip(questionLine), color),
               ...(asked ? { question: asked } : {}),
               sessionId: dialog.sessionId,
               ...(dialog.address ? { documentAddress: dialog.address } : {}),
@@ -1973,18 +2213,18 @@ window.__ModuleLoader__.load({
             documentName: name,
             type: quote ? 'selection' : 'document',
             quote,
-            note: text,
+            note: withColor(text.slice(0, NOTE_BODY_LIMIT), color),
             sessionId: dialog.sessionId,
             ...(dialog.address ? { documentAddress: dialog.address } : {}),
           })
           bumpVersion()
           setBusy(false)
           setSaved(true)
-          // Keep the confirmation visible before moving focus to the notes page.
+          // Stay in the document; the notes page is reachable from the toolbar.
           setTimeout(() => {
-            openNotesPanel(ctxRef.current, { path: dialog.path, name, address: dialog.address })
             closeDialog()
-          }, 700)
+            showToast(t('toast.saved'))
+          }, 500)
         } catch (failure) {
           setError(errorText(t, failure))
           setBusy(false)
@@ -2038,6 +2278,17 @@ window.__ModuleLoader__.load({
             h('div', { className: 'dr-field' },
               h('div', { className: 'dr-field-label' }, h('span', null, t('dialog.source')), h('span', null, name)),
             ),
+            h('div', { className: 'dr-color-row' },
+              h('span', { className: 'dr-color-label' }, t('dialog.color')),
+              ...COLOR_KEYS.map(key => h('button', {
+                key,
+                type: 'button',
+                className: `dr-color-swatch dr-color-${key}${color === key ? ' dr-color-active' : ''}`,
+                title: t(`color.${key}`),
+                'aria-label': t(`color.${key}`),
+                'aria-pressed': color === key,
+                onClick: () => setColor(key),
+              }))),
             mode === 'ask' ? [
               h('div', { className: 'dr-field', key: 'quick' },
                 h('div', { className: 'dr-field-label' }, h('span', null, t('dialog.questionLabel')), null),
@@ -2130,13 +2381,17 @@ window.__ModuleLoader__.load({
       const [confirmId, setConfirmId] = React.useState(null)
       const [focusedId, setFocusedId] = React.useState(null)
       const [openMap, setOpenMap] = React.useState({})
+      const [fontSize, setFontSize] = React.useState(readFontSize)
       const focusTimer = React.useRef(null)
       const version = useStore(versionStore)
       const focus = useStore(focusStore)
       const t = tRef.current
 
-      const isThread = annotation => Boolean(annotation.question) || annotation.source === 'ask'
-        || /(?:^|\n)(?:问[：:]|Q:)/.test(annotation.note || '')
+      React.useEffect(() => {
+        storeFontSize(fontSize)
+      }, [fontSize])
+
+      const isThread = annotation => isAskAnnotation(annotation)
       const isOpen = annotation => {
         if (openMap[annotation.id] !== undefined) return openMap[annotation.id]
         return String(annotation.note || '').length <= 220 && !isThread(annotation)
@@ -2183,6 +2438,11 @@ window.__ModuleLoader__.load({
         let alive = true
         setLoading(true)
         setError(null)
+        const cached = path ? annotationsCache.get(path) : null
+        if (cached) {
+          setAnnotations(cached.annotations)
+          setLoading(false)
+        }
         ;(async () => {
           try {
             const docs = await requestJson('documents')
@@ -2191,7 +2451,9 @@ window.__ModuleLoader__.load({
             if (path) {
               const data = await requestJson('list', { documentPath: path })
               if (!alive) return
-              setAnnotations(Array.isArray(data && data.annotations) ? data.annotations : [])
+              const next = Array.isArray(data && data.annotations) ? data.annotations : []
+              annotationsCache.set(path, { annotations: next, at: Date.now() })
+              setAnnotations(current => annotationsSignature(current) === annotationsSignature(next) ? current : next)
             } else {
               setAnnotations([])
             }
@@ -2256,7 +2518,7 @@ window.__ModuleLoader__.load({
         const text = buildReferenceText(t, {
           name: path ? name : (annotation.documentName || baseName(annotation.documentPath)),
           quote: annotation.quote,
-          note: annotation.note,
+          note: stripColor(annotation.note),
         })
         if (!insertAtCaret(input, text)) {
           setError(new ApiError('inputUnavailable'))
@@ -2279,14 +2541,28 @@ window.__ModuleLoader__.load({
           name,
           address,
           quote: annotation.quote,
+          color: annotationColor(annotation),
           truncated: false,
           needsSelection: false,
         })
       }
 
+      const changeColor = async (annotation) => {
+        const next = nextColor(annotationColor(annotation))
+        try {
+          await requestJson('update', {
+            id: annotation.id,
+            note: withColor(stripColor(annotation.note).slice(0, NOTE_BODY_LIMIT), next),
+          })
+          bumpVersion()
+        } catch (failure) {
+          setError(failure)
+        }
+      }
+
       const startEdit = (annotation) => {
         setEditingId(annotation.id)
-        setEditNote(annotation.note)
+        setEditNote(stripColor(annotation.note))
         setConfirmId(null)
         setOpenMap(map => ({ ...map, [annotation.id]: true }))
       }
@@ -2294,7 +2570,10 @@ window.__ModuleLoader__.load({
       const saveEdit = async (annotation) => {
         if (editNote.trim() === '') return
         try {
-          await requestJson('update', { id: annotation.id, note: editNote })
+          await requestJson('update', {
+            id: annotation.id,
+            note: withColor(editNote.trim().slice(0, NOTE_BODY_LIMIT), annotationColor(annotation)),
+          })
           setEditingId(null)
           bumpVersion()
         } catch (failure) {
@@ -2312,10 +2591,28 @@ window.__ModuleLoader__.load({
         }
       }
 
+      const fontTools = h('span', { className: 'dr-font-tools' },
+        h('button', {
+          type: 'button', className: 'dr-link dr-font-btn', title: t('panel.fontSmaller'),
+          'aria-label': t('panel.fontSmaller'),
+          onClick: () => setFontSize(size => Math.max(12, size - 1)),
+        }, 'A-'),
+        h('button', {
+          type: 'button', className: 'dr-link dr-font-btn', title: t('panel.fontLarger'),
+          'aria-label': t('panel.fontLarger'),
+          onClick: () => setFontSize(size => Math.min(20, size + 1)),
+        }, 'A+'),
+      )
       const head = h('div', { className: 'dr-panel-head' },
         h('div', { className: 'dr-panel-title-row' },
           h('span', { className: 'dr-panel-title', title: path || undefined },
             path ? (name || baseName(path)) : t('panel.allDocuments')),
+          h('button', {
+            type: 'button', className: 'dr-icon-btn', title: t('panel.refresh'),
+            'aria-label': t('panel.refresh'), onClick: refresh,
+          }, icon('refresh')),
+        ),
+        h('div', { className: 'dr-panel-tools-row' },
           h('span', { className: 'dr-panel-tools' },
             path
               ? h('button', { type: 'button', className: 'dr-link', onClick: backToAll }, t('panel.back'))
@@ -2338,11 +2635,8 @@ window.__ModuleLoader__.load({
             path
               ? h('button', { type: 'button', className: 'dr-link', onClick: annotateDocument }, t('panel.annotateDocument'))
               : null,
-            h('button', {
-              type: 'button', className: 'dr-icon-btn', title: t('panel.refresh'),
-              'aria-label': t('panel.refresh'), onClick: refresh,
-            }, icon('refresh')),
           ),
+          fontTools,
         ),
         h('div', { className: 'dr-meta' },
           path ? path : format(t('panel.documents'), { count: documents.length })),
@@ -2380,11 +2674,21 @@ window.__ModuleLoader__.load({
                 toggle(annotation)
               },
             },
-              h('span', { className: `dr-badge${annotation.question || annotation.source === 'ask' || /(?:^|\n)(?:问[：:]|Q:)/.test(annotation.note || '') ? ' dr-badge-ask' : ''}` },
-                annotation.question || annotation.source === 'ask' || /(?:^|\n)(?:问[：:]|Q:)/.test(annotation.note || '')
+              h('span', { className: `dr-badge${isAskAnnotation(annotation) ? ' dr-badge-ask' : ''}` },
+                isAskAnnotation(annotation)
                   ? t('panel.typeAsk')
                   : annotation.type === 'document' ? t('panel.typeDocument') : t('panel.typeSelection')),
               h('span', { className: 'dr-card-head-right' },
+                h('button', {
+                  type: 'button',
+                  className: `dr-color-dot dr-color-${annotationColor(annotation)}`,
+                  title: t('panel.color'),
+                  'aria-label': t('panel.color'),
+                  onClick: event => {
+                    event.stopPropagation()
+                    void changeColor(annotation)
+                  },
+                }),
                 h('span', { className: 'dr-meta' }, updated),
                 h('button', {
                   type: 'button',
@@ -2413,7 +2717,7 @@ window.__ModuleLoader__.load({
                 ),
               )
               : isOpen(annotation)
-                ? h(NoteBody, { note: annotation.note })
+                ? h(NoteBody, { note: stripColor(annotation.note) })
                 : h('div', {
                   className: 'dr-card-preview',
                   onClick: () => setOpenMap(map => ({ ...map, [annotation.id]: true })),
@@ -2459,7 +2763,10 @@ window.__ModuleLoader__.load({
           t('panel.emptyHint'))
       }
 
-      return h('div', { className: 'dr-panel' }, head,
+      return h('div', {
+        className: 'dr-panel',
+        style: { '--dr-read-font': `${fontSize}px` },
+      }, head,
         h('div', { className: 'dr-panel-body' }, banner, content))
     }
 

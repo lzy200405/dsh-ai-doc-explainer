@@ -267,9 +267,14 @@ test('every class used by the browser half is defined in its own stylesheet', ()
   )
   const missing = [...used].filter(name => !defined.has(name))
   assert.deepEqual(missing, [], `undefined CSS classes: ${missing.join(', ')}`)
-  // Only the modal scrim and the two in-text highlight colors are literals.
+  // Only the modal scrim, the five marker colours and the five highlight paints
+  // are literals; everything else goes through theme tokens.
   const literals = [...css.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\(/g)].map(match => match[0])
-  assert.deepEqual(literals, ['rgba(', 'rgba(', 'rgba('], 'only the scrim and highlight paints use literal colors')
+  assert.deepEqual(literals, [
+    'rgba(',
+    '#f2c94c', '#4f8ef7', '#35b87f', '#e070a8', '#ef8a3c',
+    'rgba(', 'rgba(', 'rgba(', 'rgba(', 'rgba(',
+  ], 'only the scrim, marker palette and highlight paints use literal colors')
 })
 
 test('the browser half imports no Harness client package', () => {
